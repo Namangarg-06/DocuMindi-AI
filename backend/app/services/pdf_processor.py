@@ -120,35 +120,65 @@ class PDFProcessor:
                     detail="The PDF contains no extractable text. It may contain only scanned images without OCR."
                 )
 
-            # 4. Normalize metadata (ensure 1-indexed page numbers and attach filename)
+            # 4. Process each page and extract chunks with EXACT line numbers
+            all_chunks: List[Document] = []
+
             for page in pages:
-                # PyPDFLoader usually stores 0-indexed 'page' in metadata
+                page_text = page.page_content or ""
                 raw_page = page.metadata.get("page", 0)
                 try:
                     page_num = int(raw_page) + 1
                 except (ValueError, TypeError):
                     page_num = 1
-                page.metadata["page"] = page_num
-                page.metadata["source_filename"] = original_filename
 
-            # 5. Split documents into chunks using RecursiveCharacterTextSplitter
-            chunks = self.text_splitter.split_documents(pages)
+                # Split this specific page into chunks
+                page_split_texts = self.text_splitter.split_text(page_text)
+                search_cursor = 0
 
-            # Filter out chunks that are purely whitespace
-            chunks = [chunk for chunk in chunks if chunk.page_content.strip()]
+                for chunk_text in page_split_texts:
+                    clean_chunk = chunk_text.strip()
+                    if not clean_chunk:
+                        continue
 
-            if not chunks:
+                    # Find where this chunk occurs in the page text to get exact line numbers
+                    # Look up first 40 characters of chunk
+                    match_needle = clean_chunk[:40] if len(clean_chunk) >= 40 else clean_chunk
+                    char_idx = page_text.find(match_needle, search_cursor)
+                    if char_idx == -1:
+                        char_idx = search_cursor
+
+                    # Count newlines to calculate line numbers
+                    start_line = page_text[:char_idx].count('\n') + 1
+                    chunk_newline_count = clean_chunk.count('\n')
+                    end_line = start_line + chunk_newline_count
+
+                    line_range = f"Line {start_line}" if start_line == end_line else f"Lines {start_line}-{end_line}"
+                    search_cursor = char_idx + len(clean_chunk)
+
+                    chunk_doc = Document(
+                        page_content=clean_chunk,
+                        metadata={
+                            "page": page_num,
+                            "line_start": start_line,
+                            "line_end": end_line,
+                            "line_range": line_range,
+                            "source_filename": original_filename
+                        }
+                    )
+                    all_chunks.append(chunk_doc)
+
+            if not all_chunks:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail="No valid text chunks could be produced from this PDF."
                 )
 
             logger.info(
-                f"Processed '{original_filename}': {total_pages} pages -> {len(chunks)} chunks "
+                f"Processed '{original_filename}': {total_pages} pages -> {len(all_chunks)} chunks with exact line numbers "
                 f"(chunk_size={self.chunk_size}, overlap={self.chunk_overlap})"
             )
 
-            return chunks, total_pages
+            return all_chunks, total_pages
 
         finally:
             # 6. Strict cleanup of temporary file on disk

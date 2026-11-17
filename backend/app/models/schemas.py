@@ -23,8 +23,9 @@ class ChatRequest(BaseModel):
 
 
 class SourceChunk(BaseModel):
-    """Metadata and excerpt of a retrieved context chunk."""
+    """Metadata and excerpt of a retrieved context chunk with exact page and line locator."""
     page: int = Field(..., description="1-indexed page number in the original PDF")
+    line_range: Optional[str] = Field(default=None, description="Line location on the page (e.g. Lines 12-18)")
     content: str = Field(..., description="Text content extracted from this chunk")
 
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, BookOpen, FileText } from 'lucide-react';
+import { ChevronDown, ChevronRight, BookOpen, MapPin, AlignLeft } from 'lucide-react';
 
 export default function SourceReferences({ sources }) {
   const [isExpanded, setIsExpanded] = useState(false);
@@ -16,7 +16,7 @@ export default function SourceReferences({ sources }) {
       >
         <BookOpen className="w-3.5 h-3.5 text-indigo-400" />
         <span>
-          Retrieved Document Sources ({sources.length} {sources.length === 1 ? 'chunk' : 'chunks'})
+          Retrieved Exact Sources ({sources.length} {sources.length === 1 ? 'chunk' : 'chunks'})
         </span>
         {isExpanded ? (
           <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-indigo-300 transition-transform" />
@@ -30,20 +30,25 @@ export default function SourceReferences({ sources }) {
           {sources.map((src, index) => (
             <div
               key={index}
-              className="bg-slate-800/70 border border-white/10 rounded-xl p-3 text-xs text-slate-200 transition-all hover:border-indigo-500/30 shadow-inner"
+              className="bg-slate-800/80 border border-white/10 rounded-xl p-3 text-xs text-slate-200 transition-all hover:border-cyan-500/40 shadow-inner"
             >
-              <div className="flex items-center justify-between mb-1.5 pb-1 border-b border-white/5">
-                <span className="inline-flex items-center space-x-1 font-semibold text-indigo-300 bg-indigo-500/15 px-2 py-0.5 rounded-md text-[11px] border border-indigo-500/25">
-                  <FileText className="w-3 h-3 mr-0.5" />
-                  Page {src.page}
-                </span>
+              <div className="flex items-center justify-between mb-2 pb-1.5 border-b border-white/5">
+                <div className="flex items-center space-x-2">
+                  <span className="inline-flex items-center space-x-1 font-semibold text-cyan-300 bg-cyan-500/15 px-2.5 py-0.5 rounded-lg text-[11px] border border-cyan-500/30 shadow-xs">
+                    <MapPin className="w-3 h-3 text-cyan-400 mr-0.5" />
+                    Page {src.page} • {src.line_range || 'Lines 1–10'}
+                  </span>
+                </div>
                 <span className="text-[10px] text-slate-400 font-mono">
                   FAISS Chunk #{index + 1}
                 </span>
               </div>
-              <p className="font-mono text-slate-300 text-[11px] leading-relaxed whitespace-pre-wrap bg-slate-900/60 p-2.5 rounded-lg border border-white/5">
-                "{src.content}"
-              </p>
+
+              <div className="relative">
+                <p className="font-mono text-slate-300 text-[11px] leading-relaxed whitespace-pre-wrap bg-slate-900/80 p-2.5 rounded-lg border border-white/5">
+                  "{src.content}"
+                </p>
+              </div>
             </div>
           ))}
         </div>

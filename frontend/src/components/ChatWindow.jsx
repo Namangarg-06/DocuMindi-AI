@@ -13,10 +13,10 @@ import { sendChatMessage } from '../services/api';
 import { saveSessionToHistory } from '../services/historyService';
 
 const SUGGESTED_QUESTIONS = [
-  "Summarize this document.",
-  "What are the main topics?",
-  "Explain the key findings.",
-  "What is the conclusion?",
+  "Find where RAG is defined and tell me the page and line.",
+  "What are the key findings and which page/lines are they on?",
+  "Where is the conclusion located in this document?",
+  "Summarize this document with exact page references.",
 ];
 
 export default function ChatWindow({ sessionData, initialMessages = null, onHistoryUpdated }) {

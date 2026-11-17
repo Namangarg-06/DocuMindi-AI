@@ -3,10 +3,12 @@ import Header from './components/Header';
 import FileUpload from './components/FileUpload';
 import ChatWindow from './components/ChatWindow';
 import HistoryDrawer from './components/HistoryDrawer';
+import IntroSplash from './components/IntroSplash';
 import { deleteSession } from './services/api';
 import { getHistory } from './services/historyService';
 
 export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
   const [sessionData, setSessionData] = useState(null);
   const [initialMessages, setInitialMessages] = useState(null);
   const [isResetting, setIsResetting] = useState(false);
@@ -61,6 +63,11 @@ export default function App() {
   return (
     <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">
       
+      {/* Intro Splash Animation (Shows on Load / Refresh) */}
+      {showSplash && (
+        <IntroSplash onFinish={() => setShowSplash(false)} />
+      )}
+
       {/* Ambient Glowing Aurora Background Orbs */}
       <div className="aurora-bg">
         <div className="aurora-blob-1" />

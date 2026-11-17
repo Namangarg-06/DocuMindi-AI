@@ -22,5 +22,5 @@ langchain-huggingface>=0.0.3,<0.2.0
 
 # Local Embeddings & Vector Store (CPU, 100% Free, Local)
 sentence-transformers>=3.0.0,<4.0.0
-faiss-cpu>=1.8.0,<2.0.0
-torch>=2.2.0,<2.6.0
+faiss-cpu>=1.8.0
+torch>=2.2.0

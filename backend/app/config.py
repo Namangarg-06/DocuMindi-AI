@@ -12,6 +12,10 @@ from pydantic import Field
 BASE_DIR = Path(__file__).resolve().parent.parent
 ENV_PATH = BASE_DIR / ".env"
 
+# Ensure Hugging Face cache uses D: drive to prevent C: drive out-of-space issues
+if "HF_HOME" not in os.environ:
+    os.environ["HF_HOME"] = str(BASE_DIR.parent / ".hf_cache")
+
 
 class Settings(BaseSettings):
     """Application settings with type hints and defaults."""

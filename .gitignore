@@ -45,6 +45,9 @@ pnpm-debug.log*
 *.pkl
 *.pdf
 test.txt
+.pip_cache/
+.tmp/
+.hf_cache/
 
 # Operating System & IDE
 .DS_Store

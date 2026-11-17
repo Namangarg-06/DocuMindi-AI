@@ -1,7 +1,17 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Sparkles, Loader2, AlertCircle, FileCheck2, HelpCircle } from 'lucide-react';
+import { 
+  Send, 
+  Sparkles, 
+  Loader2, 
+  AlertCircle, 
+  FileCheck2, 
+  HelpCircle,
+  RotateCcw,
+  BookOpen
+} from 'lucide-react';
 import ChatMessage from './ChatMessage';
 import { sendChatMessage } from '../services/api';
+import { saveSessionToHistory } from '../services/historyService';
 
 const SUGGESTED_QUESTIONS = [
   "Summarize this document.",
@@ -10,16 +20,21 @@ const SUGGESTED_QUESTIONS = [
   "What is the conclusion?",
 ];
 
-export default function ChatWindow({ sessionData }) {
-  const [messages, setMessages] = useState([
-    {
-      id: 'welcome',
-      sender: 'assistant',
-      text: `Hello! I have indexed **"${sessionData.filename}"** (${sessionData.total_pages} ${sessionData.total_pages === 1 ? 'page' : 'pages'}, ${sessionData.total_chunks} chunks).\n\nWhat would you like to know about this document? You can choose a suggested question below or type your own question.`,
-      sources: [],
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    },
-  ]);
+export default function ChatWindow({ sessionData, initialMessages = null, onHistoryUpdated }) {
+  const [messages, setMessages] = useState(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      return initialMessages;
+    }
+    return [
+      {
+        id: 'welcome',
+        sender: 'assistant',
+        text: `Hello! I have indexed **"${sessionData.filename}"** (${sessionData.total_pages} ${sessionData.total_pages === 1 ? 'page' : 'pages'}, ${sessionData.total_chunks} chunks).\n\nWhat would you like to know about this document? You can click one of the suggested prompts below or ask your own question.`,
+        sources: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ];
+  });
 
   const [inputQuery, setInputQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -27,6 +42,16 @@ export default function ChatWindow({ sessionData }) {
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+
+  // Sync to history on message change
+  useEffect(() => {
+    if (messages.length > 0) {
+      saveSessionToHistory(sessionData, messages);
+      if (onHistoryUpdated) {
+        onHistoryUpdated();
+      }
+    }
+  }, [messages, sessionData]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -43,7 +68,6 @@ export default function ChatWindow({ sessionData }) {
     setErrorMessage('');
     const userTimestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-    // Append user message immediately
     const userMessage = {
       id: `user-${Date.now()}`,
       sender: 'user',
@@ -51,7 +75,8 @@ export default function ChatWindow({ sessionData }) {
       timestamp: userTimestamp,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
+    const newMessages = [...messages, userMessage];
+    setMessages(newMessages);
     setInputQuery('');
     setIsLoading(true);
 
@@ -66,13 +91,12 @@ export default function ChatWindow({ sessionData }) {
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
 
-      setMessages((prev) => [...prev, aiMessage]);
+      setMessages([...newMessages, aiMessage]);
     } catch (err) {
       console.error('Chat error:', err);
       setErrorMessage(err.message || 'Failed to generate answer. Please try again.');
     } finally {
       setIsLoading(false);
-      // Refocus input field
       setTimeout(() => inputRef.current?.focus(), 50);
     }
   };
@@ -84,26 +108,54 @@ export default function ChatWindow({ sessionData }) {
     }
   };
 
+  const handleClearChat = () => {
+    const resetWelcome = [
+      {
+        id: 'welcome',
+        sender: 'assistant',
+        text: `Chat cleared for **"${sessionData.filename}"**. Ask a new question whenever you're ready!`,
+        sources: [],
+        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      },
+    ];
+    setMessages(resetWelcome);
+  };
+
   return (
     <div className="flex flex-col h-[calc(100vh-4rem)] max-w-4xl mx-auto px-4 sm:px-6 py-4">
-      {/* Document info banner */}
-      <div className="bg-white border border-slate-200/80 rounded-xl px-4 py-2.5 mb-3 flex items-center justify-between shadow-xs">
-        <div className="flex items-center space-x-2 text-xs text-slate-600">
-          <FileCheck2 className="w-4 h-4 text-emerald-600" />
-          <span>Active PDF:</span>
-          <span className="font-semibold text-slate-800">{sessionData.filename}</span>
-          <span className="text-slate-300">|</span>
-          <span>{sessionData.total_pages} {sessionData.total_pages === 1 ? 'page' : 'pages'}</span>
-          <span className="text-slate-300">|</span>
-          <span>{sessionData.total_chunks} indexed chunks</span>
+      
+      {/* Top Document Status Banner */}
+      <div className="bg-white/90 backdrop-blur-sm border border-slate-200/90 rounded-2xl px-4 py-2.5 mb-3 flex items-center justify-between shadow-xs">
+        <div className="flex items-center space-x-2 text-xs text-slate-600 truncate">
+          <FileCheck2 className="w-4 h-4 text-emerald-600 flex-shrink-0" />
+          <span className="text-slate-400">PDF:</span>
+          <span className="font-bold text-slate-800 truncate max-w-[200px]" title={sessionData.filename}>
+            {sessionData.filename}
+          </span>
+          <span className="text-slate-300">•</span>
+          <span className="hidden sm:inline">{sessionData.total_pages} pages</span>
+          <span className="text-slate-300 hidden sm:inline">•</span>
+          <span className="hidden sm:inline">{sessionData.total_chunks} chunks</span>
         </div>
-        <div className="flex items-center space-x-1.5">
-          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span className="text-[11px] font-medium text-emerald-700">RAG Ready</span>
+
+        <div className="flex items-center space-x-2 flex-shrink-0">
+          <button
+            onClick={handleClearChat}
+            className="flex items-center space-x-1 text-[11px] text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 px-2 py-1 rounded-md border border-slate-200 transition-colors"
+            title="Clear current messages"
+          >
+            <RotateCcw className="w-3 h-3" />
+            <span className="hidden sm:inline">Clear Chat</span>
+          </button>
+
+          <div className="flex items-center space-x-1.5 bg-emerald-50 text-emerald-700 px-2.5 py-1 rounded-full text-[11px] font-semibold border border-emerald-200">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>Ready</span>
+          </div>
         </div>
       </div>
 
-      {/* Chat Messages Scroll Area */}
+      {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto px-1 py-2 space-y-2">
         {messages.map((message) => (
           <ChatMessage key={message.id} message={message} />
@@ -113,17 +165,19 @@ export default function ChatWindow({ sessionData }) {
         {isLoading && (
           <div className="flex w-full justify-start mb-4">
             <div className="flex max-w-[80%] items-start gap-2.5">
-              <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-brand-600 to-blue-400 text-white flex items-center justify-center flex-shrink-0 shadow-sm">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-indigo-600 text-white flex items-center justify-center flex-shrink-0 shadow-sm shadow-brand-500/20">
                 <Sparkles className="w-4 h-4 animate-spin" />
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-sm">
+              <div className="bg-white border border-slate-200 rounded-2xl rounded-tl-none px-4 py-3 shadow-xs">
                 <div className="flex items-center space-x-2">
                   <div className="flex space-x-1">
                     <div className="w-2 h-2 rounded-full bg-brand-500 animate-bounce [animation-delay:-0.3s]"></div>
                     <div className="w-2 h-2 rounded-full bg-brand-500 animate-bounce [animation-delay:-0.15s]"></div>
                     <div className="w-2 h-2 rounded-full bg-brand-500 animate-bounce"></div>
                   </div>
-                  <span className="text-xs text-slate-500 ml-2">Searching FAISS & generating answer...</span>
+                  <span className="text-xs text-slate-500 ml-2 font-medium">
+                    Searching FAISS vector index & formulating response...
+                  </span>
                 </div>
               </div>
             </div>
@@ -133,12 +187,12 @@ export default function ChatWindow({ sessionData }) {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Suggested Questions (only displayed if only welcome message exists or user wants suggestions) */}
+      {/* Suggested Questions */}
       {messages.length <= 2 && (
         <div className="mb-3">
           <div className="flex items-center space-x-1.5 text-xs text-slate-500 mb-2">
             <HelpCircle className="w-3.5 h-3.5 text-brand-500" />
-            <span>Suggested Questions:</span>
+            <span className="font-medium">Suggested Questions:</span>
           </div>
           <div className="flex flex-wrap gap-2">
             {SUGGESTED_QUESTIONS.map((q, idx) => (
@@ -146,7 +200,7 @@ export default function ChatWindow({ sessionData }) {
                 key={idx}
                 onClick={() => handleSendMessage(q)}
                 disabled={isLoading}
-                className="text-xs bg-white hover:bg-brand-50 hover:border-brand-300 text-slate-700 hover:text-brand-700 px-3 py-1.5 rounded-lg border border-slate-200 shadow-2xs transition-colors disabled:opacity-50"
+                className="text-xs bg-white hover:bg-brand-50 hover:border-brand-300 text-slate-700 hover:text-brand-700 px-3 py-1.5 rounded-xl border border-slate-200 shadow-2xs transition-all hover:scale-[1.01] disabled:opacity-50"
               >
                 {q}
               </button>
@@ -157,17 +211,17 @@ export default function ChatWindow({ sessionData }) {
 
       {/* Error Banner */}
       {errorMessage && (
-        <div className="mb-3 p-3 bg-red-50 border border-red-200 rounded-xl flex items-start space-x-2.5 text-red-800 text-xs">
+        <div className="mb-3 p-3.5 bg-red-50 border border-red-200 rounded-2xl flex items-start space-x-2.5 text-red-800 text-xs">
           <AlertCircle className="w-4 h-4 text-red-600 flex-shrink-0 mt-0.5" />
           <div className="flex-1">
-            <span className="font-semibold">Query Failed: </span>
+            <span className="font-bold">Error: </span>
             <span>{errorMessage}</span>
           </div>
         </div>
       )}
 
-      {/* Input Box */}
-      <div className="bg-white border border-slate-200 rounded-2xl shadow-sm p-2 flex items-center gap-2">
+      {/* Input Bar */}
+      <div className="bg-white border border-slate-200/90 rounded-2xl shadow-sm p-2 flex items-center gap-2 focus-within:border-brand-400 focus-within:ring-2 focus-within:ring-brand-500/10 transition-all">
         <textarea
           ref={inputRef}
           value={inputQuery}
@@ -176,12 +230,12 @@ export default function ChatWindow({ sessionData }) {
           placeholder="Ask anything about the document... (Press Enter to send)"
           rows={1}
           disabled={isLoading}
-          className="flex-1 resize-none bg-transparent px-3 py-2 text-sm text-slate-800 placeholder-slate-400 focus:outline-none max-h-32 disabled:opacity-50"
+          className="flex-1 resize-none bg-transparent px-3 py-2 text-xs sm:text-sm text-slate-800 placeholder-slate-400 focus:outline-none max-h-32 disabled:opacity-50"
         />
         <button
           onClick={() => handleSendMessage()}
           disabled={!inputQuery.trim() || isLoading}
-          className="w-10 h-10 rounded-xl bg-brand-600 hover:bg-brand-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-sm"
+          className="w-10 h-10 rounded-xl bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-700 hover:to-indigo-700 text-white flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed flex-shrink-0 shadow-md shadow-brand-500/20"
           title="Send Question"
         >
           {isLoading ? (
@@ -192,9 +246,10 @@ export default function ChatWindow({ sessionData }) {
         </button>
       </div>
 
-      <p className="text-[11px] text-center text-slate-400 mt-2">
-        Answers are strictly grounded in your uploaded PDF. Embeddings and document chunks exist only for this session.
+      <p className="text-[10px] text-center text-slate-400 mt-2">
+        DocuMindi AI answers are strictly grounded in your document with automatic history tracking.
       </p>
+
     </div>
   );
 }

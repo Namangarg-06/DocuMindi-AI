@@ -1,39 +1,50 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Cpu, ShieldCheck, Zap } from 'lucide-react';
+import { Sparkles, Cpu, ShieldCheck, Zap, Volume2, VolumeX } from 'lucide-react';
+import { playStartupSound, playCompletionChime } from '../services/soundEffects';
 
 export default function IntroSplash({ onFinish }) {
   const [progress, setProgress] = useState(0);
   const [phaseText, setPhaseText] = useState('Initializing Local RAG Architecture...');
   const [isFadingOut, setIsFadingOut] = useState(false);
+  const [soundEnabled, setSoundEnabled] = useState(true);
 
+  // Play startup sound on mount or first click
   useEffect(() => {
+    // Attempt startup sound
+    if (soundEnabled) {
+      playStartupSound();
+    }
+
     // Stage 1: Initializing
     const t1 = setTimeout(() => {
       setProgress(35);
       setPhaseText('Loading Hugging Face all-MiniLM-L6-v2 Embeddings...');
-    }, 400);
+    }, 450);
 
     // Stage 2: FAISS
     const t2 = setTimeout(() => {
       setProgress(75);
       setPhaseText('Mounting In-Memory FAISS Vector Index on CPU...');
-    }, 1000);
+    }, 1100);
 
-    // Stage 3: Ready
+    // Stage 3: Ready + Completion Chime
     const t3 = setTimeout(() => {
       setProgress(100);
       setPhaseText('DocuMindi AI Neural Engine Ready.');
-    }, 1600);
+      if (soundEnabled) {
+        playCompletionChime();
+      }
+    }, 1750);
 
     // Stage 4: Trigger Fade Out
     const t4 = setTimeout(() => {
       setIsFadingOut(true);
-    }, 2000);
+    }, 2250);
 
     // Stage 5: Unmount
     const t5 = setTimeout(() => {
       onFinish();
-    }, 2500);
+    }, 2750);
 
     return () => {
       clearTimeout(t1);
@@ -42,16 +53,33 @@ export default function IntroSplash({ onFinish }) {
       clearTimeout(t4);
       clearTimeout(t5);
     };
-  }, [onFinish]);
+  }, [onFinish, soundEnabled]);
 
-  const handleSkip = () => {
+  const handleUserInteraction = () => {
+    // Browser autoplay policy unlocks audio context on click
+    if (soundEnabled) {
+      playStartupSound();
+    }
+  };
+
+  const handleSkip = (e) => {
+    e.stopPropagation();
     setIsFadingOut(true);
     setTimeout(onFinish, 400);
   };
 
+  const toggleSound = (e) => {
+    e.stopPropagation();
+    setSoundEnabled(!soundEnabled);
+    if (!soundEnabled) {
+      playStartupSound();
+    }
+  };
+
   return (
     <div
-      className={`fixed inset-0 z-50 bg-[#070a13] flex flex-col items-center justify-center overflow-hidden transition-all duration-500 ${
+      onClick={handleUserInteraction}
+      className={`fixed inset-0 z-50 bg-[#070a13] flex flex-col items-center justify-center overflow-hidden transition-all duration-500 cursor-pointer ${
         isFadingOut ? 'opacity-0 scale-105 pointer-events-none' : 'opacity-100 scale-100'
       }`}
     >
@@ -59,20 +87,42 @@ export default function IntroSplash({ onFinish }) {
       <div className="absolute w-[600px] h-[600px] rounded-full bg-gradient-to-tr from-indigo-600/25 via-purple-600/20 to-blue-500/20 blur-[120px] animate-pulse pointer-events-none" />
       <div className="absolute w-[400px] h-[400px] rounded-full bg-cyan-500/15 blur-[90px] -bottom-20 -right-20 pointer-events-none" />
 
-      {/* Skip Button */}
-      <button
-        onClick={handleSkip}
-        className="absolute top-6 right-6 text-xs text-slate-400 hover:text-white px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-mono tracking-wider"
-      >
-        SKIP INTRO ➔
-      </button>
+      {/* Top Controls Bar */}
+      <div className="absolute top-6 inset-x-6 flex items-center justify-between z-20">
+        
+        {/* Sound Toggle Button */}
+        <button
+          onClick={toggleSound}
+          className="flex items-center space-x-1.5 text-xs text-slate-300 hover:text-white px-3 py-1.5 rounded-full bg-slate-800/60 hover:bg-slate-700/80 border border-white/10 transition-all shadow-sm"
+          title={soundEnabled ? "Mute sound" : "Enable sound"}
+        >
+          {soundEnabled ? (
+            <>
+              <Volume2 className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="font-mono text-[11px]">SFX ON</span>
+            </>
+          ) : (
+            <>
+              <VolumeX className="w-3.5 h-3.5 text-slate-500" />
+              <span className="font-mono text-[11px] text-slate-400">MUTED</span>
+            </>
+          )}
+        </button>
+
+        {/* Skip Button */}
+        <button
+          onClick={handleSkip}
+          className="text-xs text-slate-400 hover:text-white px-3.5 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 transition-all font-mono tracking-wider"
+        >
+          SKIP INTRO ➔
+        </button>
+      </div>
 
       {/* Center Cinematic Container */}
       <div className="relative flex flex-col items-center z-10 px-6 text-center max-w-lg">
         
         {/* Holographic Glowing Icon */}
         <div className="relative mb-8 group">
-          {/* Rotating halo rings */}
           <div className="absolute -inset-3 rounded-3xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 opacity-60 blur-xl animate-spin duration-3000 pointer-events-none" />
           <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-cyan-400 via-indigo-400 to-purple-400 opacity-90 blur-sm pointer-events-none" />
           
@@ -114,8 +164,13 @@ export default function IntroSplash({ onFinish }) {
           </div>
         </div>
 
+        {/* Click notice for browser audio policy */}
+        <p className="mt-4 text-[10px] text-slate-500 font-mono">
+          🎵 Futuristic Startup Chime Active • Click anywhere for audio
+        </p>
+
         {/* Micro-features strip */}
-        <div className="mt-8 flex items-center space-x-4 text-[10px] text-slate-500 font-mono">
+        <div className="mt-6 flex items-center space-x-4 text-[10px] text-slate-500 font-mono">
           <span className="flex items-center space-x-1">
             <Cpu className="w-3 h-3 text-cyan-400" />
             <span>100% CPU</span>

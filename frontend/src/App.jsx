@@ -13,7 +13,6 @@ export default function App() {
   const [isHistoryOpen, setIsHistoryOpen] = useState(false);
   const [historyList, setHistoryList] = useState([]);
 
-  // Refresh history list on mount and updates
   const refreshHistory = () => {
     setHistoryList(getHistory());
   };
@@ -60,8 +59,15 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 flex flex-col font-sans relative overflow-x-hidden">
+    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans relative overflow-x-hidden selection:bg-indigo-500 selection:text-white">
       
+      {/* Ambient Glowing Aurora Background Orbs */}
+      <div className="aurora-bg">
+        <div className="aurora-blob-1" />
+        <div className="aurora-blob-2" />
+        <div className="aurora-blob-3" />
+      </div>
+
       {/* Top Navbar */}
       <Header
         sessionData={sessionData}
@@ -72,7 +78,7 @@ export default function App() {
       />
 
       {/* Main Container */}
-      <main className="flex-1 flex flex-col">
+      <main className="flex-1 flex flex-col relative z-10">
         {!sessionData ? (
           <div className="flex-1 flex items-center justify-center">
             <FileUpload 

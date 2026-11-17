@@ -112,21 +112,36 @@ class RAGService:
         # 2. Format context for prompt
         context_str = self._format_context(retrieved_docs)
 
-        # 3. Call LLM
-        llm = self.get_llm()
-        chain = self.prompt | llm | self.output_parser
+        # 3. Call LLM or provide grounded context fallback if API key is not configured yet
+        has_api_key = bool(settings.GROQ_API_KEY and settings.GROQ_API_KEY.strip() not in ("", "your_groq_api_key_here"))
 
-        try:
-            answer = await chain.ainvoke({
-                "context": context_str,
-                "question": cleaned_question
-            })
-        except Exception as e:
-            logger.error(f"Error during LLM invocation: {e}")
-            raise HTTPException(
-                status_code=status.HTTP_502_BAD_GATEWAY,
-                detail=f"Error communicating with LLM provider (Groq): {str(e)}"
+        if not has_api_key:
+            # Intelligent fallback: vector search works 100% locally on CPU without any API key
+            top_snippet = retrieved_docs[0].page_content.strip()
+            top_page = retrieved_docs[0].metadata.get("page", 1)
+            answer = (
+                f"### 📄 Retrieved Context from Document (Page {top_page})\n\n"
+                f"> \"{top_snippet}\"\n\n"
+                f"---\n"
+                f"💡 **RAG Local Retrieval Status:** Successfully retrieved **{len(retrieved_docs)} relevant chunk(s)** "
+                f"using local Hugging Face embeddings and FAISS index.\n\n"
+                f"*To enable conversational LLM answer synthesis, you can optionally paste a free Groq API key in `backend/.env`.*"
             )
+        else:
+            llm = self.get_llm()
+            chain = self.prompt | llm | self.output_parser
+
+            try:
+                answer = await chain.ainvoke({
+                    "context": context_str,
+                    "question": cleaned_question
+                })
+            except Exception as e:
+                logger.error(f"Error during LLM invocation: {e}")
+                raise HTTPException(
+                    status_code=status.HTTP_502_BAD_GATEWAY,
+                    detail=f"Error communicating with LLM provider (Groq): {str(e)}"
+                )
 
         # 4. Extract clean source citations
         sources = [
